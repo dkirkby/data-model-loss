@@ -54,7 +54,38 @@ body {
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--rule);
+  /* The accent bar, where a panel has one. Undecorated panels fall back to the
+     ordinary rule color and so read as neutral. */
+  border-top: 4px solid var(--accent, var(--rule));
   border-radius: 6px;
+}
+
+/*
+ * Panel accents follow the same semantics as everything else: #fecc07 for the
+ * dataset-fixed panel, #255799 for the parameter-dependent one, dark green for
+ * the loss. The flow chart and the corner plot are deliberately left neutral --
+ * both mix dataset and model components, so either color would misstate what
+ * they show.
+ */
+
+.panel-accent-dataset {
+  --accent: var(--dataset);
+}
+
+.panel-accent-model {
+  --accent: var(--model);
+}
+
+.panel-accent-loss {
+  --accent: var(--loss);
+}
+
+/* A wash of the accent in the header, light enough that the title stays
+   legible against it at #fecc07 as well as at the two darker colors. */
+.panel-accent-dataset > .panel-header,
+.panel-accent-model > .panel-header,
+.panel-accent-loss > .panel-header {
+  background: color-mix(in srgb, var(--accent) 10%, #fbfbfc);
 }
 
 .panel-header {
@@ -92,8 +123,8 @@ body {
 }
 
 .panel-collapse:hover {
-  border-color: var(--model);
-  color: var(--model);
+  border-color: var(--accent, var(--model));
+  color: var(--accent, var(--model));
 }
 
 .panel-body {
