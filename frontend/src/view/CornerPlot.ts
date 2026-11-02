@@ -40,11 +40,15 @@ import {
   involvesOutput,
   isUpper,
   SIZE,
+  stepOutlinePoints,
+  type HistogramBin,
 } from "./mapping.ts";
 
 const GAP = 3;
 /** Room along the left and bottom edges for the variable names. */
 const PAD = { left: 54, bottom: 30, top: 4, right: 4 };
+/** The loss color bar: its width, its gap from the matrix, and room for labels. */
+const BAR = { width: 13, gap: 10, labels: 52 };
 const HIST_BINS = 22;
 const FLASH_MS = 1300;
 
@@ -93,18 +97,7 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
   const [predictionLabel, predictionToggle] = checkbox("Show predictions", "model");
   const [toggleLabel, toggle] = checkbox("Points colored by loss value");
 
-  // A gradient strip with the end values, so the colors can be read as numbers.
-  const legend = document.createElement("div");
-  legend.className = "loss-legend";
-  const legendLow = document.createElement("span");
-  legendLow.className = "loss-legend-end";
-  const legendBar = document.createElement("span");
-  legendBar.className = "loss-legend-bar";
-  const legendHigh = document.createElement("span");
-  legendHigh.className = "loss-legend-end";
-  legend.append(legendLow, legendBar, legendHigh);
-
-  controls.append(dataLabel, predictionLabel, toggleLabel, legend);
+  controls.append(dataLabel, predictionLabel, toggleLabel);
   shell.append(controls);
 
   const frame = document.createElement("div");
@@ -153,17 +146,13 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
     return value.toPrecision(3);
   }
 
-  /** Show the ramp only while coloring by loss; hide it otherwise. */
-  function renderLegend(domain: [number, number] | null): void {
-    legend.classList.toggle("is-visible", domain !== null);
-    if (!domain) return;
-    const [low, high] = domain;
-    legendLow.textContent = `L = ${format(low)}`;
-    legendHigh.textContent = `\u2265 ${format(high)} (log)`;
-  }
-
-  function layout(): { cell: number; plot: number; originX: number; originY: number } | null {
-    const width = frame.clientWidth - PAD.left - PAD.right;
+  function layout(
+    showColorbar: boolean,
+  ): { cell: number; plot: number; originX: number; originY: number } | null {
+    // The gutter is only taken when the bar is shown, so the matrix uses the
+    // full panel width the rest of the time.
+    const right = showColorbar ? BAR.gap + BAR.width + BAR.labels : PAD.right;
+    const width = frame.clientWidth - PAD.left - right;
     const height = frame.clientHeight - PAD.top - PAD.bottom;
     const plot = Math.min(width, height);
     if (!Number.isFinite(plot) || plot < 60) return null;
@@ -217,8 +206,56 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
     }
   }
 
+  /**
+   * The loss color bar, down the right-hand side of the matrix.
+   *
+   * Drawn on the canvas rather than as a CSS gradient so its stops come from
+   * the same `colorAt` the points do: a hand-written CSS approximation of
+   * viridis drifts from the marks it is supposed to explain.
+   */
+  function drawColorbar(
+    ctx: CanvasRenderingContext2D,
+    ramp: ReturnType<typeof lossRamp>,
+    box: { plot: number; originX: number; originY: number },
+  ): void {
+    const left = box.originX + box.plot + BAR.gap;
+    const top = box.originY;
+    const bottom = box.originY + box.plot;
+
+    // High loss at the top, low at the bottom.
+    const gradient = ctx.createLinearGradient(0, bottom, 0, top);
+    const STOPS = 48;
+    for (let i = 0; i <= STOPS; i += 1) {
+      gradient.addColorStop(i / STOPS, ramp.colorAt(i / STOPS));
+    }
+    ctx.fillStyle = gradient;
+    ctx.fillRect(left, top, BAR.width, bottom - top);
+    ctx.strokeStyle = "#c9ccd1";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(left, top, BAR.width, bottom - top);
+
+    ctx.fillStyle = "#5c5c5c";
+    ctx.strokeStyle = "#5c5c5c";
+    ctx.font = "10px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    for (const value of ramp.ticks(5)) {
+      const y = bottom - ramp.position(value) * (bottom - top);
+      ctx.beginPath();
+      ctx.moveTo(left + BAR.width, y);
+      ctx.lineTo(left + BAR.width + 3, y);
+      ctx.stroke();
+      ctx.fillText(format(value), left + BAR.width + 6, y);
+    }
+
+    // The top of the scale is a cut, not a maximum: say so.
+    ctx.textBaseline = "bottom";
+    ctx.fillText("L (log)", left, top - 3);
+  }
+
   function draw(session: Session): void {
-    const box = layout();
+    const box = layout(session.colorByLoss);
     if (!box) return;
     placeOverlay(box);
     renderLabels(session, box);
@@ -247,7 +284,7 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
     const losses = weights.sample_losses;
     const ramp = lossRamp(losses);
     const pointColors = session.colorByLoss ? losses.map((value) => ramp.color(value)) : null;
-    renderLegend(session.colorByLoss ? ramp.domain : null);
+    if (session.colorByLoss) drawColorbar(ctx, ramp, box);
 
     for (let row = 0; row < SIZE; row += 1) {
       for (let col = 0; col < SIZE; col += 1) {
@@ -389,57 +426,73 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
       .domain([0, peak])
       .range([0, (spec.size - 4) * 0.86]);
 
-    // Predictions first, as a solid fill; the targets are then stroked over
-    // them so the comparison stays readable where they overlap.
+    // Predictions first, as a solid fill; the dataset outline goes over them so
+    // the comparison stays readable where they overlap.
     if (outputBins) {
       ctx.fillStyle = MODEL_COLOR;
       ctx.globalAlpha = 0.75;
-      drawBars(ctx, outputBins, x, height, base, "fill");
+      drawBars(ctx, outputBins, x, height, base);
       ctx.globalAlpha = 1;
     }
 
     if (!dataBins) return;
-    if (spec.index < FEATURES) {
-      ctx.fillStyle = DATASET_COLOR;
-      ctx.globalAlpha = 0.55;
-      drawBars(ctx, dataBins, x, height, base, "fill");
-      ctx.globalAlpha = 1;
-    }
-    ctx.strokeStyle = spec.index < FEATURES ? DATASET_MARK : DATASET_COLOR;
-    ctx.lineWidth = spec.index < FEATURES ? 1 : 1.6;
-    drawBars(ctx, dataBins, x, height, base, "stroke");
+    ctx.strokeStyle = DATASET_COLOR;
+    ctx.lineWidth = 1.6;
+    drawStepOutline(ctx, dataBins, x, height, base);
   }
 
+  /** Solid bars: the prediction histogram. */
   function drawBars(
     ctx: CanvasRenderingContext2D,
-    bins: { x0?: number; x1?: number; length: number }[],
+    bins: HistogramBin[],
     x: ScaleLinear<number, number>,
     height: ScaleLinear<number, number>,
     base: number,
-    mode: "fill" | "stroke",
   ): void {
     ctx.beginPath();
     for (const item of bins) {
       if (item.x0 === undefined || item.x1 === undefined) continue;
       const left = x(item.x0);
-      const right = x(item.x1);
       const barHeight = height(item.length);
-      if (mode === "fill") {
-        ctx.rect(left, base - barHeight, Math.max(0.5, right - left), barHeight);
-      } else {
-        // An outline that traces the bar tops, rather than 22 separate boxes.
-        ctx.moveTo(left, base - barHeight);
-        ctx.lineTo(right, base - barHeight);
-        ctx.lineTo(right, base);
-      }
+      ctx.rect(left, base - barHeight, Math.max(0.5, x(item.x1) - left), barHeight);
     }
-    if (mode === "fill") ctx.fill();
-    else ctx.stroke();
+    ctx.fill();
+  }
+
+  /**
+   * A single unfilled step silhouette, matplotlib's histtype="step".
+   *
+   * One continuous path: up from the axis at the left edge, horizontal across
+   * each bin, a vertical only at the boundary *between* adjacent bins, and back
+   * down to the axis at the right edge. The earlier version dropped a line to
+   * the axis after every bin, which drew a comb and read as a bevel or a drop
+   * shadow against the filled bars underneath.
+   */
+  function drawStepOutline(
+    ctx: CanvasRenderingContext2D,
+    bins: HistogramBin[],
+    x: ScaleLinear<number, number>,
+    height: ScaleLinear<number, number>,
+    base: number,
+  ): void {
+    const points = stepOutlinePoints(bins, x, height, base);
+    if (points.length === 0) return;
+
+    ctx.save();
+    ctx.lineJoin = "miter";
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+    const [first, ...rest] = points;
+    ctx.moveTo(first![0], first![1]);
+    for (const [px, py] of rest) ctx.lineTo(px, py);
+    ctx.stroke();
+    ctx.restore();
   }
 
   const observer = new ResizeObserver(() => {
     if (current) draw(current);
   });
+
   observer.observe(frame);
 
   let wired = false;

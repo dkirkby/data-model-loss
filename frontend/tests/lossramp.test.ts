@@ -69,3 +69,47 @@ describe("lossRamp", () => {
     expect(ramp.color(0)).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });
+
+describe("lossRamp color bar support", () => {
+  const ramp = lossRamp([0.001, 0.01, 0.1, 1, 10]);
+
+  it("places the domain ends at the ends of the bar", () => {
+    expect(ramp.position(ramp.domain[0])).toBeCloseTo(0, 10);
+    expect(ramp.position(ramp.domain[1])).toBeCloseTo(1, 10);
+  });
+
+  it("clamps outside the domain instead of running off the bar", () => {
+    expect(ramp.position(0)).toBe(0);
+    expect(ramp.position(1e9)).toBe(1);
+  });
+
+  it("puts the geometric midpoint halfway along, because the scale is log", () => {
+    const [low, high] = ramp.domain;
+    const geometric = Math.sqrt(low * high);
+    expect(ramp.position(geometric)).toBeCloseTo(0.5, 6);
+    // The arithmetic midpoint sits far up the bar, which is the whole point of
+    // using a log scale for a right-skewed quantity.
+    expect(ramp.position((low + high) / 2)).toBeGreaterThan(0.8);
+  });
+
+  it("colors the bar from the same function that colors the points", () => {
+    for (const value of [ramp.domain[0], 0.05, ramp.domain[1]]) {
+      expect(ramp.color(value)).toBe(ramp.colorAt(ramp.position(value)));
+    }
+  });
+
+  it("gives tick values inside the domain, no more than asked for", () => {
+    const ticks = ramp.ticks(5);
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(ticks.length).toBeLessThanOrEqual(5);
+    for (const tick of ticks) {
+      expect(tick).toBeGreaterThanOrEqual(ramp.domain[0]);
+      expect(tick).toBeLessThanOrEqual(ramp.domain[1]);
+    }
+  });
+
+  it("still gives ticks when the domain spans well under a decade", () => {
+    const narrow = lossRamp([0.5, 0.52, 0.55, 0.6]);
+    expect(narrow.ticks(5).length).toBeGreaterThan(0);
+  });
+});

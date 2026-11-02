@@ -18,6 +18,12 @@ const MAX_DECADES = 4;
 export interface LossRamp {
   /** Viridis over log(L), clamped to the domain below. */
   color(value: number): string;
+  /** The color at a fraction of the way along the ramp; for drawing a color bar. */
+  colorAt(fraction: number): string;
+  /** Where a loss sits along the ramp, 0 to 1. */
+  position(value: number): number;
+  /** Round values to label a color bar with, at most `count` of them. */
+  ticks(count: number): number[];
   /** [low, high] -- high is the 99th percentile, low a positive floor. */
   domain: [number, number];
   /** Always true; kept explicit so callers can label their axes honestly. */
@@ -25,14 +31,25 @@ export interface LossRamp {
 }
 
 function ramp(low: number, high: number): LossRamp {
-  const position = scaleLog().domain([low, high]).range([0, 1]).clamp(true);
+  const scale = scaleLog().domain([low, high]).range([0, 1]).clamp(true);
+  // log(0) is -Infinity, and a zero loss is entirely possible, so the floor is
+  // applied before the scale rather than relying on clamping.
+  const position = (value: number): number => scale(Math.max(value, low));
   return {
     domain: [low, high],
     logarithmic: true,
+    position,
+    colorAt: interpolateViridis,
     color(value: number): string {
-      // log(0) is -Infinity, and a zero loss is entirely possible, so the floor
-      // is applied before the scale rather than relying on clamping.
-      return interpolateViridis(position(Math.max(value, low)));
+      return interpolateViridis(position(value));
+    },
+    ticks(count: number): number[] {
+      // A log scale hands back every power of ten in range and then some, so
+      // thin them to roughly the requested count, keeping the ends.
+      const candidates = scale.ticks(count).filter((value) => value >= low && value <= high);
+      if (candidates.length <= count) return candidates;
+      const stride = Math.ceil(candidates.length / count);
+      return candidates.filter((_, index) => index % stride === 0);
     },
   };
 }

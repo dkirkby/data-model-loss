@@ -17,6 +17,7 @@ import {
   involvesOutput,
   isUpper,
   SIZE,
+  stepOutlinePoints,
   weightFor,
 } from "../src/view/mapping.ts";
 
@@ -206,5 +207,88 @@ describe("weightFor and biasFor", () => {
     const weightCount = layers.reduce((sum, l) => sum + l.weights.flat().length, 0);
     const biasCount = layers.reduce((sum, l) => sum + l.biases.length, 0);
     expect(weightCount + biasCount).toBe(387);
+  });
+});
+
+
+describe("stepOutlinePoints", () => {
+  const identity = (value: number) => value;
+  const height = (count: number) => count;
+  const BASE = 100;
+
+  // Three contiguous non-empty bins across [0, 3], mapped 1:1 to pixels, with
+  // the axis at y = 100 and one count per pixel of height.
+  const bins = [
+    { x0: 0, x1: 1, length: 10 },
+    { x0: 1, x1: 2, length: 30 },
+    { x0: 2, x1: 3, length: 20 },
+  ];
+  const points = stepOutlinePoints(bins, identity, height, BASE);
+
+  it("traces one continuous path: two points per bin plus the two ends", () => {
+    expect(points).toEqual([
+      [0, 100],
+      [0, 90], [1, 90],
+      [1, 70], [2, 70],
+      [2, 80], [3, 80],
+      [3, 100],
+    ]);
+  });
+
+  it("touches the axis only at the two ends, which is what killed the comb", () => {
+    const onAxis = points.filter(([, y]) => y === BASE);
+    expect(onAxis).toEqual([
+      [0, BASE],
+      [3, BASE],
+    ]);
+  });
+
+  it("puts every vertical exactly on a boundary shared by two bins", () => {
+    for (let i = 1; i < points.length; i += 1) {
+      const [x0, y0] = points[i - 1]!;
+      const [x1, y1] = points[i]!;
+      if (x0 === x1 && y0 !== y1) {
+        expect(bins.some((bin) => bin.x0 === x0 || bin.x1 === x0)).toBe(true);
+      }
+    }
+  });
+
+  it("drops to the axis across an empty bin, and closes only once", () => {
+    const withGap = stepOutlinePoints(
+      [
+        { x0: 0, x1: 1, length: 10 },
+        { x0: 1, x1: 2, length: 0 },
+        { x0: 2, x1: 3, length: 5 },
+      ],
+      identity,
+      height,
+      BASE,
+    );
+    expect(withGap).toEqual([
+      [0, 100],
+      [0, 90], [1, 90],
+      [1, 100], [2, 100],
+      [2, 95], [3, 95],
+      [3, 100],
+    ]);
+  });
+
+  it("does not repeat the closing point when the last bin is empty", () => {
+    const trailing = stepOutlinePoints(
+      [
+        { x0: 0, x1: 1, length: 10 },
+        { x0: 1, x1: 2, length: 0 },
+      ],
+      identity,
+      height,
+      BASE,
+    );
+    expect(trailing[trailing.length - 1]).toEqual([2, BASE]);
+    expect(trailing.filter(([x, y]) => x === 2 && y === BASE)).toHaveLength(1);
+  });
+
+  it("skips bins d3 left without an extent, and handles an empty list", () => {
+    expect(stepOutlinePoints([], identity, height, BASE)).toEqual([]);
+    expect(stepOutlinePoints([{ length: 5 }], identity, height, BASE)).toEqual([]);
   });
 });

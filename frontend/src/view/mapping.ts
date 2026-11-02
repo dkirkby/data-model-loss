@@ -101,3 +101,47 @@ export function biasFor(layers: LayerParameters[], node: NodeRef): number | unde
   if (node.layerIndex === 0) return undefined;
   return layers[node.layerIndex - 1]?.biases[node.nodeIndex];
 }
+
+
+/** The shape d3.bin returns, reduced to what the outline needs. */
+export interface HistogramBin {
+  x0?: number;
+  x1?: number;
+  length: number;
+}
+
+/**
+ * The polyline of an unfilled step histogram, matplotlib's histtype="step".
+ *
+ * Up from the axis at the left edge, horizontal across each bin, a vertical only
+ * at the boundary *between* adjacent bins, and back down to the axis at the
+ * right edge. Nothing drops to the axis mid-figure: a line after every bin draws
+ * a comb, which reads as a bevel or a drop shadow rather than an outline.
+ */
+export function stepOutlinePoints(
+  bins: HistogramBin[],
+  x: (value: number) => number,
+  height: (count: number) => number,
+  base: number,
+): [number, number][] {
+  const points: [number, number][] = [];
+  let lastRight: number | null = null;
+
+  for (const item of bins) {
+    if (item.x0 === undefined || item.x1 === undefined) continue;
+    const left = x(item.x0);
+    const right = x(item.x1);
+    const top = base - height(item.length);
+    if (points.length === 0) points.push([left, base]);
+    points.push([left, top], [right, top]);
+    lastRight = right;
+  }
+
+  // An empty final bin already ends on the axis; closing again would emit a
+  // duplicate point.
+  const last = points[points.length - 1];
+  if (lastRight !== null && !(last && last[0] === lastRight && last[1] === base)) {
+    points.push([lastRight, base]);
+  }
+  return points;
+}
