@@ -1,0 +1,276 @@
+/*
+ * Shell styling only. The two meaningful colors are in view/colors.ts and are
+ * mirrored here as custom properties: #fecc07 marks dataset-fixed components,
+ * #255799 parameter-dependent ones (PLAN.md section 4).
+ */
+
+:root {
+  --dataset: #fecc07;
+  --model: #255799;
+  --loss: #1b5e20;
+
+  --ink: #1a1a1a;
+  --ink-soft: #5c5c5c;
+  --rule: #d8d8d8;
+  --panel: #ffffff;
+  --page: #f4f5f7;
+
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 16px 24px;
+  background: var(--page);
+}
+
+.masthead {
+  padding: 16px 0 8px;
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.masthead p {
+  margin: 4px 0 0;
+  max-width: 70ch;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+/* -- panels ------------------------------------------------------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.panel-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rule);
+  background: #fbfbfc;
+  cursor: move; /* the Gridstack drag handle */
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.panel-collapse {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panel-collapse:hover {
+  border-color: var(--model);
+  color: var(--model);
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+  overflow: auto;
+}
+
+/* A collapsed panel shows its header only; its body must not bleed through. */
+.grid-stack-item.is-collapsed .panel-body {
+  display: none;
+}
+
+/* -- controls ----------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+
+.control-block {
+  display: block;
+}
+
+.control-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.control-block select {
+  width: 100%;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.weight-selector {
+  margin: 0 0 10px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.weight-selector legend {
+  padding: 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.loss-chip {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #eef2f7;
+  color: var(--model);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--model);
+  color: #fff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- dataset panel ------------------------------------------------------ */
+
+.dataset-domain {
+  margin: 10px 0 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Synthetic data is outlined in the dataset color: it is a dataset-fixed fact
+   about the snapshot, and it has to be impossible to miss. */
+.provenance {
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  border-left: 4px solid var(--dataset);
+  background: #fffdf0;
+  font-size: 0.8125rem;
+}
+
+.provenance-era5,
+.provenance-sdss {
+  border-left-color: var(--loss);
+  background: #f1f8f2;
+}
+
+.variables {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+}
+
+.variables dt {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.variables dd {
+  margin: 0 0 6px;
+}
+
+.loss-title {
+  margin: 0 0 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* -- Phase 3 placeholders ----------------------------------------------- */
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-height: 60px;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  background: repeating-linear-gradient(
+    45deg,
+    #fcfcfd,
+    #fcfcfd 8px,
+    #f7f8fa 8px,
+    #f7f8fa 16px
+  );
+}
+
+.placeholder-component {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  color: var(--model);
+}
+
+.placeholder-note {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* -- status ------------------------------------------------------------- */
+
+.status {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.status-error {
+  color: #a01b1b;
+  font-weight: 600;
+}

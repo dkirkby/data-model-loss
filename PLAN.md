@@ -119,6 +119,10 @@ Arranged as a $6 \times 6$ matrix of subplots with axes omitted and data scaled 
 - Weight Selection Controls: Radio buttons or dropdown to choose between 3 Random Initializations and 3 Pretrained Weight sets (Default: 1st Pretrained Set).
 
 #### C. Dataset Description & Inspector Panel
+- **Dataset selector**: switches between the regression and classification datasets.
+  §4's panel list does not assign this control a home; it lives here because this is the
+  panel that describes the dataset. Switching resets the weight selection to the new
+  dataset's `default_weight_id`.
 - **Header**: `metadata.domain` and the task type, with the sample count $N$.
 - **Variable list**: `feature_names` and `target_names` with their units, in the column
   order used everywhere else, so a corner-plot subplot can be read back to a variable.

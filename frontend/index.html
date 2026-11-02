@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data, Model, Loss</title>
+    <meta
+      name="description"
+      content="An interactive visualizer of the training problem: data, model predictions, targets and loss."
+    />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="masthead">
+      <h1>Data &rarr; Model &rarr; Loss</h1>
+      <p>
+        The training problem, <em>x</em> &rarr; <em>f(x;&Theta;)</em> &rarr;
+        <em>&ycirc;</em> &harr; <em>y</em> &rarr; <em>L</em>. Drag a panel by its header,
+        resize it from an edge, collapse it with the button.
+      </p>
+    </header>
+
+    <!--
+      The Gridstack container. Panels are declared here with gs-* attributes and
+      adopted by GridStack.init() in view/workspace.ts; their bodies are filled by
+      view/panels.ts. The letters match PLAN.md section 4: the flow chart is the top
+      container, then Panel A (corner plot), B (model), C (dataset), D (loss).
+    -->
+    <main class="grid-stack" id="workspace">
+      <div class="grid-stack-item" id="panel-flowchart" gs-id="flowchart" gs-x="0" gs-y="0" gs-w="12" gs-h="3">
+        <div class="grid-stack-item-content panel">
+          <header class="panel-header">
+            <h2>Data Flow</h2>
+            <button class="panel-collapse" type="button" aria-expanded="true" title="Collapse panel">&ndash;</button>
+          </header>
+          <div class="panel-body"></div>
+        </div>
+      </div>
+
+      <div class="grid-stack-item" id="panel-corner" gs-id="corner" gs-x="0" gs-y="3" gs-w="7" gs-h="10">
+        <div class="grid-stack-item-content panel">
+          <header class="panel-header">
+            <h2>A &middot; Corner Plot</h2>
+            <button class="panel-collapse" type="button" aria-expanded="true" title="Collapse panel">&ndash;</button>
+          </header>
+          <div class="panel-body"></div>
+        </div>
+      </div>
+
+      <div class="grid-stack-item" id="panel-model" gs-id="model" gs-x="7" gs-y="3" gs-w="5" gs-h="5">
+        <div class="grid-stack-item-content panel">
+          <header class="panel-header">
+            <h2>B &middot; Model &amp; Weights</h2>
+            <button class="panel-collapse" type="button" aria-expanded="true" title="Collapse panel">&ndash;</button>
+          </header>
+          <div class="panel-body"></div>
+        </div>
+      </div>
+
+      <div class="grid-stack-item" id="panel-dataset" gs-id="dataset" gs-x="7" gs-y="8" gs-w="5" gs-h="3">
+        <div class="grid-stack-item-content panel">
+          <header class="panel-header">
+            <h2>C &middot; Dataset</h2>
+            <button class="panel-collapse" type="button" aria-expanded="true" title="Collapse panel">&ndash;</button>
+          </header>
+          <div class="panel-body"></div>
+        </div>
+      </div>
+
+      <div class="grid-stack-item" id="panel-loss" gs-id="loss" gs-x="7" gs-y="11" gs-w="5" gs-h="2">
+        <div class="grid-stack-item-content panel">
+          <header class="panel-header">
+            <h2>D &middot; Loss Function</h2>
+            <button class="panel-collapse" type="button" aria-expanded="true" title="Collapse panel">&ndash;</button>
+          </header>
+          <div class="panel-body"></div>
+        </div>
+      </div>
+    </main>
+
+    <p class="status" id="status" role="status"></p>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

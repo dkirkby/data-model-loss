@@ -16,12 +16,14 @@ relative (same Vite + TypeScript frontend, same `uv` + PyTorch offline pipeline,
 `nnet-svg` network diagram, same GitHub Pages deploy) and is worth reading before
 inventing structure here.
 
-## Status: Phase 1 done, frontend not started
+## Status: Phases 1-2 done, panels are placeholders
 
-`PLAN.md` §5 Phase 1 — the data and model pipeline — is implemented and its snapshot is
-built. Phases 2-4 (the Vite/TypeScript app, the panels, the Pages workflow) do not exist
-yet. The repository is **not yet a git repo**; the intended remote is
-<https://github.com/dkirkby/data-model-loss>.
+`PLAN.md` §5 Phase 1 (the data and model pipeline) and Phase 2 (the Vite/TypeScript app
+shell) are implemented. **Phase 3 is the next work**: the five panel bodies in
+`frontend/src/view/panels.ts` are placeholders naming the component that replaces them —
+`Flowchart.ts`, `CornerPlot.ts`, `ModelPanel.ts`, `LossPanel.ts`. Phase 4 (the Pages
+workflow) does not exist yet. The remote is
+<https://github.com/dkirkby/data-model-loss>, default branch `main`.
 
 - `PLAN.md` — the design spec: objectives, stack, UI panel-by-panel component specs,
   phased implementation steps, and the manual QA checklist.
@@ -56,10 +58,17 @@ against the table in `DATA.md` §5 to confirm a run is sane.
 No linter or formatter is configured, matching the siblings. `scipy` is in `PLAN.md`'s
 dependency list but nothing needs it, so it is not declared; `numpy` and `torch` are.
 
-Phase 2 begins with `npm create vite@latest . -- --template vanilla-ts` inside
-`frontend/`, then `npm install gridstack d3 nnet-svg katex` (nnet-svg pinned to 0.1.1).
-Follow `../nnintro` for the steady-state frontend commands: `npm ci` / `npm run dev` /
-`npm run typecheck` / `npm run test` (vitest) / `npm run build`.
+```bash
+cd frontend
+npm ci                  # clean install; no --legacy-peer-deps needed here
+npm run dev             # vite dev server, at /data-model-loss/ (not /)
+npm run typecheck       # tsc --noEmit
+npm run test            # vitest: 20 tests, ~0.5 s
+npm run build           # tsc && vite build -> frontend/dist
+```
+
+`npm run build` typechecks `src` **and** `tests` before bundling, so a broken test file
+fails the build rather than slipping through.
 
 Deployment is GitHub Actions → GitHub Pages on push to `main` (`PLAN.md` §5 Phase 4).
 In the siblings, **CI never runs Python**: the site serves the committed JSON snapshot,
@@ -134,6 +143,36 @@ $[0.5\%, 99.5\%]$ quantile scaling with axes omitted.
 Panels live in draggable/resizable/collapsible `Gridstack.js` tiles, arranged by the
 instructor at presentation time; nothing auto-advances.
 
+### How the frontend shell is put together
+
+```
+frontend/src/
+  main.ts            load artifact -> init workspace -> wire panels -> emit once
+  model/types.ts     the TS mirror of DATA.md §4; change both or neither
+  model/artifact.ts  fetch + validate; validateArtifact is DOM-free so tests use it
+  model/session.ts   the selection (dataset, weight set, loss coloring) + subscribers
+  view/colors.ts     the two semantic colors, imported rather than re-typed
+  view/workspace.ts  Gridstack init, drag/resize/collapse
+  view/panels.ts     panel bodies; Phase 3 replaces the placeholders here
+```
+
+Three things are easy to undo by accident:
+
+**Fetches must go through `import.meta.env.BASE_URL`.** The site is served from
+`/data-model-loss/` on Pages, so a leading-slash path (`/data/model_runs.json`) works in
+dev and 404s in production. `vite.config.ts` sets `base`; `model/artifact.ts` is the only
+place that builds the URL.
+
+**Panels never talk to each other.** They subscribe to the `Session` and re-render from
+it; `session.emit()` in `main.ts` is what paints the initial state. Switching dataset
+resets the weight selection to that dataset's `default_weight_id`, because weight ids are
+per-dataset.
+
+**Collapse is hand-rolled.** Gridstack has no collapse; `view/workspace.ts` remembers a
+panel's height in `dataset.expandedHeight`, shrinks it to one row, and restores it. The
+grid runs in `mode: "float"` (gridstack 14's name for the old `float: true`) so a panel
+stays where the instructor puts it.
+
 ### Explicitly out of scope
 
 Optimization *trajectories*, train/validation/test splits, and learning kinetics are
@@ -158,3 +197,10 @@ baseline, regression outputs in physical units). `tests/conftest.py` puts `pytho
 
 The artifact tests skip rather than fail when the snapshot is missing, so a fresh clone
 can run `uv run pytest` before `uv run python/generate_data.py`.
+
+On the frontend, `frontend/tests/artifact.test.ts` pushes the committed snapshot through
+the same `validateArtifact` the app uses — the other half of the DATA.md §4 contract —
+and `frontend/tests/dependencies.test.ts` asserts gridstack, d3, katex and nnet-svg each
+import and expose what Phase 3 reaches for. The artifact suite is pinned to vitest's
+`node` environment (the project default is jsdom) because it reads the snapshot off disk
+through `import.meta.url`, which jsdom reports as an `http://` URL.
