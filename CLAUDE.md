@@ -16,14 +16,17 @@ relative (same Vite + TypeScript frontend, same `uv` + PyTorch offline pipeline,
 `nnet-svg` network diagram, same GitHub Pages deploy) and is worth reading before
 inventing structure here.
 
-## Status: Phases 1-2 done, panels are placeholders
+## Status: Phases 1-3 done, deployment not set up
 
-`PLAN.md` §5 Phase 1 (the data and model pipeline) and Phase 2 (the Vite/TypeScript app
-shell) are implemented. **Phase 3 is the next work**: the five panel bodies in
-`frontend/src/view/panels.ts` are placeholders naming the component that replaces them —
-`Flowchart.ts`, `CornerPlot.ts`, `ModelPanel.ts`, `LossPanel.ts`. Phase 4 (the Pages
-workflow) does not exist yet. The remote is
-<https://github.com/dkirkby/data-model-loss>, default branch `main`.
+`PLAN.md` §5 Phases 1-3 are implemented: the data and model pipeline, the app shell, and
+all five panel components. **Phase 4 is the next work** — `.github/workflows/pages.yml`
+plus enabling Pages with the "GitHub Actions" source in the repo settings, which is a
+manual step in the web UI. The remote is <https://github.com/dkirkby/data-model-loss>,
+default branch `main`.
+
+Two things in the UI are deliberately unbuilt: the per-sample inspector named in
+`PLAN.md` §4C (Panel C says so in its own text), and point-level hit testing in the
+corner plot, which the canvas renderer would need a `d3.quadtree` for.
 
 - `PLAN.md` — the design spec: objectives, stack, UI panel-by-panel component specs,
   phased implementation steps, and the manual QA checklist.
@@ -157,10 +160,22 @@ frontend/src/
   model/types.ts     the TS mirror of DATA.md §4; change both or neither
   model/artifact.ts  fetch + validate; validateArtifact is DOM-free so tests use it
   model/session.ts   the selection (dataset, weight set, loss coloring) + subscribers
+  model/highlight.ts transient flowchart-click events; not state, so not on Session
   view/colors.ts     the two semantic colors, imported rather than re-typed
   view/workspace.ts  Gridstack init, drag/resize/collapse
-  view/panels.ts     panel bodies; Phase 3 replaces the placeholders here
+  view/mapping.ts    the corner-plot and weight-matrix index arithmetic, pure
+  view/Flowchart.ts  top container; the clickable blocks
+  view/CornerPlot.ts Panel A; canvas marks under a DOM overlay
+  view/ModelPanel.ts Panel B; nnet-svg plus the weight selector
+  view/DatasetPanel.ts Panel C; description and the provenance badge
+  view/LossPanel.ts  Panel D; KaTeX
 ```
+
+**`view/mapping.ts` is where the plot's meaning lives.** Corner-plot indices 3-5 are
+dual — targets below the diagonal, model outputs above it — and the weight matrices are
+`[out][in]`, matching torch's `Linear.weight`. Both are places where an off-by-one gives
+a diagram that looks entirely plausible and is wrong, which is why the functions are pure
+and separately tested rather than inlined into the renderers.
 
 Three things are easy to undo by accident:
 
@@ -209,4 +224,7 @@ the same `validateArtifact` the app uses — the other half of the DATA.md §4 c
 and `frontend/tests/dependencies.test.ts` asserts gridstack, d3, katex and nnet-svg each
 import and expose what Phase 3 reaches for. The artifact suite is pinned to vitest's
 `node` environment (the project default is jsdom) because it reads the snapshot off disk
-through `import.meta.url`, which jsdom reports as an `http://` URL.
+through `import.meta.url`, which jsdom reports as an `http://` URL. `frontend/tests/mapping.test.ts`
+covers the index arithmetic against the real snapshot: which cells each flowchart block
+highlights, that indices 3-5 resolve per triangle, and that all 352 edges and 35 biases
+of the network diagram resolve to numbers summing to |Θ| = 387.

@@ -97,6 +97,14 @@ Displays the structural pipeline from left to right:
 
 #### A. 6x6 Corner Plot Panel
 Arranged as a $6 \times 6$ matrix of subplots with axes omitted and data scaled to $[0.5\%, 99.5\%]$ quantiles:
+
+> **Rendering note.** The marks go to a single `<canvas>`, not SVG. At $N = 1500$ the
+> thirty scatter cells hold ${\sim}45{,}000$ points, too many DOM nodes to re-render
+> responsively on a weight switch. D3 still supplies the scales, the binning and the
+> color ramp; the cell frames, the block outline and the flash highlights are DOM
+> elements layered over the canvas, so the interaction stays declarative. Variable names
+> are drawn along the left and bottom edges — "axes omitted" is read as omitting ticks
+> and axis lines, not as leaving the rows and columns unidentified.
 - **Diagonal Subplots (1 to 6)**:
   - Subplots 1–3: Histograms of input data features $x_1, x_2, x_3$.
   - Subplots 4–6: Combined histograms comparing target values $y_1, y_2, y_3$ (outlined in `#fecc07`) and model predictions $\hat{y}_1, \hat{y}_2, \hat{y}_3$ (filled with `#255799`).
@@ -116,7 +124,14 @@ Arranged as a $6 \times 6$ matrix of subplots with axes omitted and data scaled 
 
 #### B. Model Architecture Panel (`nnet-svg`)
 - Renders the neural network layers visually using `nnet-svg` (`v0.1.1`).
-- Edges labeled with weights $w_{ijk}$ and nodes labeled with biases $b_{jk}$.
+- Edges labeled with weights $w_{ijk}$ and nodes labeled with biases $b_{jk}$, **behind a
+  toggle that is off by default**: the middle layer pair alone has $16 \times 16 = 256$
+  edges, and printing all 387 numbers at once is unreadable. Instead, edge color carries
+  the sign of $w$ and edge width its magnitude, node fill the sign of $b$, and every
+  value is available on hover through the SVG `<title>`. The toggle prints the labels
+  when a particular layer is under discussion.
+- `maxDisplayedNodes` is set to 16 so the hidden layers are shown in full; the library
+  default of 12 would truncate them around an ellipsis and hide parameters.
 - Badge displaying **Total Parameter Count**: $|\Theta|$.
 - Weight Selection Controls: Radio buttons or dropdown to choose between 3 Random Initializations and 3 Pretrained Weight sets (Default: 1st Pretrained Set).
 
