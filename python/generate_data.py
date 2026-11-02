@@ -66,10 +66,15 @@ PLOT_Q = (0.005, 0.995)  # PLAN.md 4A: corner-plot axis limits
 # Model and training (PLAN.md 3, DATA.md 5)
 ARCH = (3, 16, 16, 3)
 RANDOM_SEEDS = (0, 1, 2)
+# The trained sets reuse the RANDOM_SEEDS, in order, so trained_opt_N is
+# literally random_N after training rather than an unrelated point in parameter
+# space. That makes the weight selector a genuine before/after pairing: same
+# starting Theta, and the difference is what SGD did. The seed also drives the
+# minibatch shuffle, so a run is reproducible end to end.
 TRAIN_CONFIGS = (
-    {"lr": 0.001, "batch_size": 32, "seed": 10},
-    {"lr": 0.010, "batch_size": 32, "seed": 11},
-    {"lr": 0.100, "batch_size": 64, "seed": 12},
+    {"lr": 0.001, "batch_size": 32, "seed": RANDOM_SEEDS[0]},
+    {"lr": 0.010, "batch_size": 32, "seed": RANDOM_SEEDS[1]},
+    {"lr": 0.100, "batch_size": 64, "seed": RANDOM_SEEDS[2]},
 )
 DEFAULT_EPOCHS = 800
 
@@ -465,7 +470,10 @@ def build_weight_sets(
         outputs, losses = evaluate(model, features, targets, task, target_mean, target_std)
         entries.append({
             "id": f"trained_opt_{i}",
-            "name": f"SGD lr={config['lr']:g}, batch {config['batch_size']} ({epochs} epochs)",
+            "name": (
+                f"SGD from Init #{i} \u2014 lr={config['lr']:g}, "
+                f"batch {config['batch_size']}, {epochs} epochs"
+            ),
             "is_trained": True,
             "hyperparameters": {**config, "epochs": epochs, "optimizer": "SGD"},
             "parameters": export_parameters(model),

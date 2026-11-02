@@ -119,8 +119,14 @@ changes, and Panel C surfaces the provenance in the UI (`PLAN.md` §4C) so a gen
 dataset is never presented as observation.
 
 The model is fixed at $3 \to 16 \to 16 \to 3$ dense, two hidden layers. The 6 weight
-sets are 3 random initializations (different seeds) + 3 converged SGD runs (different
-hyperparameters); the default selection is the first *pretrained* set.
+sets are **3 pairs**, not 6 independent points: `trained_opt_N` is `random_N` after 800
+epochs, because `TRAIN_CONFIGS` reuses `RANDOM_SEEDS`. Keep that pairing — the weight
+selector is meant to show before and after on one optimization. The default selection is
+the first pretrained set.
+
+Each pair also differs in learning rate and batch size, so the loss spread across the
+three trained sets is **not** attributable to $\eta$ alone; say so if the question comes
+up.
 
 ### Visual coding is semantic, not decorative
 

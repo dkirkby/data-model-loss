@@ -57,9 +57,11 @@ See DATA.md for details.
 ### Neural Network Model Architecture
 - **Structure**: Fixed dense feedforward neural network with 2 hidden layers ($3 \to 16 \to 16 \to 3$).
 - **Activations**: ReLU (or Tanh) for hidden layers; Identity for regression output, Softmax for classification output.
-- **Weight Configurations per Dataset**: 6 total sets of weights $\Theta$:
-  - 3 sets from random initialization (different random seeds).
-  - 3 sets from converged SGD runs with different hyperparams (seeds, learning rate, batch size).
+- **Weight Configurations per Dataset**: 6 total sets of weights $\Theta$, in 3 pairs:
+  - 3 sets from random initialization (seeds $0, 1, 2$).
+  - 3 sets from SGD runs started **from those same three initializations**, with
+    different learning rates and batch sizes. `trained_opt_N` begins at `random_N`, so
+    selecting one then the other shows before and after on a single optimization.
 
 ---
 

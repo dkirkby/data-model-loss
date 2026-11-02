@@ -227,7 +227,7 @@ The whole artifact is ~490 KB and regenerates byte-identically.
         "quantiles": {
           "features": [[804.3463, 1047.6999], [273.996, 292.4474], [7.2294, 92.1109]],
           "targets": [[1.6506, 36.4068], [-19.5978, 19.8119], [-0.3022, 0.0204]],
-          "outputs": [[2.9191, 34.4668], [-14.1552, 16.3312], [-0.2646, -0.0128]]
+          "outputs": [[2.7651, 34.2398], [-14.4341, 16.7738], [-0.2719, -0.0154]]
         },
         "standardization": {
           "feature_mean": [922.611208, 282.946097, 49.433633],
@@ -260,16 +260,16 @@ The whole artifact is ~490 KB and regenerates byte-identically.
         },
         {
           "id": "trained_opt_1",
-          "name": "SGD lr=0.001, batch 32 (800 epochs)",
+          "name": "SGD from Init #1 \u2014 lr=0.001, batch 32, 800 epochs",
           "is_trained": true,
           "hyperparameters": {
-            "lr": 0.001, "batch_size": 32, "seed": 10,
+            "lr": 0.001, "batch_size": 32, "seed": 0,
             "epochs": 800, "optimizer": "SGD"
           },
           "parameters": {"num_params": 387, "layers": []},
-          "outputs": [[25.7385, -5.362, -0.0697]],
-          "sample_losses": [0.27436, 0.029909],
-          "total_loss": 0.177857
+          "outputs": [[25.1633, -4.0784, -0.0541]],
+          "sample_losses": [0.354632, 0.058982],
+          "total_loss": 0.160209
         }
       ]
     },
@@ -286,7 +286,7 @@ The whole artifact is ~490 KB and regenerates byte-identically.
         "quantiles": {
           "features": [[-0.0393, 2.8316], [-0.4377, 1.3729], [-0.3402, 1.51]],
           "targets": [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
-          "outputs": [[0.0, 1.0], [0.0, 1.0], [0.0, 0.9979]]
+          "outputs": [[0.0, 1.0], [0.0, 1.0], [0.0, 0.9994]]
         },
         "standardization": {
           "feature_mean": [1.418916, 0.414599, 0.215468],
@@ -332,7 +332,12 @@ The whole artifact is ~490 KB and regenerates byte-identically.
    * Record initial random weights and forward pass predictions, for seeds $0, 1, 2$.
 
    * Train models using PyTorch SGD — plain, no momentum or schedule — with distinct
-     learning rates ($\eta \in \{0.001, 0.01, 0.1\}$) and batch sizes.
+     learning rates ($\eta \in \{0.001, 0.01, 0.1\}$) and batch sizes, **starting from
+     those same three initializations**: `trained_opt_N` begins at `random_N`, so the two
+     are a before/after pair on one optimization rather than unrelated points in
+     parameter space. The seed also drives the minibatch shuffle. Note the consequence
+     for interpretation: each run differs in initialization *and* learning rate *and*
+     batch size, so the spread across the three is not attributable to $\eta$ alone.
 
    * Record per-sample losses $L(\hat{\mathbf{y}}_i, \mathbf{y}_i; \Theta)$ for each of
      the six exported weight sets. No per-epoch series is stored: learning kinetics are
@@ -347,12 +352,12 @@ random sets sit at the uninformed baseline — $\text{MSE} \approx 1$ on standar
 targets, $\text{CE} \approx \ln 3 = 1.0986$ — which is itself worth pointing out in a
 lecture.
 
-| Weight set | Regression (MSE) | Classification (CE) |
-| --- | --- | --- |
-| `random_1` / `2` / `3` | 1.0198 / 1.0271 / 0.9717 | 1.1394 / 1.0735 / 1.1073 |
-| `trained_opt_1` ($\eta = 0.001$) | 0.1779 | 0.2411 |
-| `trained_opt_2` ($\eta = 0.01$) | 0.0768 | 0.1691 |
-| `trained_opt_3` ($\eta = 0.1$) | 0.0749 | 0.1659 |
+| Weight set | Starts from | Regression (MSE) | Classification (CE) |
+| --- | --- | --- | --- |
+| `random_1` / `2` / `3` | seeds 0 / 1 / 2 | 1.0198 / 1.0271 / 0.9717 | 1.1394 / 1.0735 / 1.1073 |
+| `trained_opt_1` ($\eta = 0.001$) | `random_1` | 0.1602 | 0.2539 |
+| `trained_opt_2` ($\eta = 0.01$) | `random_2` | 0.0761 | 0.1684 |
+| `trained_opt_3` ($\eta = 0.1$) | `random_3` | 0.0756 | 0.1470 |
 
 The trained regression loss floors near $0.05$ rather than $0$ because the generator
 adds observation noise: the model recovers the conditional mean, not the realization.

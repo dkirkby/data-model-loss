@@ -341,3 +341,24 @@ def test_committed_snapshot_is_synthetic(artifact):
         "atmospheric_regression": "synthetic",
         "stellar_classification": "synthetic",
     }
+
+
+# -- the random/trained pairing --------------------------------------------
+
+def test_each_trained_set_starts_from_the_matching_random_set():
+    """trained_opt_N must begin at random_N, not at an unrelated initialization."""
+    assert tuple(c["seed"] for c in gd.TRAIN_CONFIGS) == gd.RANDOM_SEEDS
+
+
+def test_artifact_random_parameters_are_the_training_starting_points(artifact):
+    """The exported random_N weights reproduce build_model(seed_N) exactly, so a
+    student reading the selector sees the actual initialization SGD began from."""
+    for i, seed in enumerate(gd.RANDOM_SEEDS, start=1):
+        expected = gd.export_parameters(gd.build_model(seed))
+        for dataset in artifact["datasets"].values():
+            entry = next(w for w in dataset["weights"] if w["id"] == f"random_{i}")
+            assert entry["parameters"] == expected
+            paired = next(w for w in dataset["weights"] if w["id"] == f"trained_opt_{i}")
+            assert paired["hyperparameters"]["seed"] == seed
+            # Training moved the weights: the pairing is before/after, not a copy.
+            assert paired["parameters"] != expected
