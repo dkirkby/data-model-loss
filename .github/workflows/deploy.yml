@@ -1,0 +1,68 @@
+# Build the visualizer and publish it to GitHub Pages.
+#
+# The site is static and its data is the committed snapshot in
+# frontend/public/data, so this never runs the Python pipeline: it is
+# `npm ci && npm run test && npm run build` and nothing else. Refreshing the
+# numbers means running `uv run python/generate_data.py` locally and committing
+# the snapshot, which is what triggers this.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read the repo, mint the Pages deployment token. Nothing else.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish; queue the
+# newer one behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # The tests run before the build that publishes: tests/artifact.test.ts
+      # validates the committed snapshot against the TypeScript contract, and a
+      # snapshot the app disagrees with should fail the job rather than ship.
+      # `npm run build` runs `tsc` first, so the typecheck comes with it.
+      - run: npm run test
+
+      - run: npm run build
+
+      # No configure-pages step: vite.config.ts pins base to /data-model-loss/,
+      # so the bundle already carries the right paths and needs no injected
+      # base URL. If this repo is ever renamed or moved to a custom domain,
+      # that constant is the one thing that has to change with it.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

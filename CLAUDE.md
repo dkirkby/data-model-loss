@@ -16,13 +16,12 @@ relative (same Vite + TypeScript frontend, same `uv` + PyTorch offline pipeline,
 `nnet-svg` network diagram, same GitHub Pages deploy) and is worth reading before
 inventing structure here.
 
-## Status: Phases 1-3 done, deployment not set up
+## Status: all four phases implemented
 
-`PLAN.md` §5 Phases 1-3 are implemented: the data and model pipeline, the app shell, and
-all five panel components. **Phase 4 is the next work** — `.github/workflows/pages.yml`
-plus enabling Pages with the "GitHub Actions" source in the repo settings, which is a
-manual step in the web UI. The remote is <https://github.com/dkirkby/data-model-loss>,
-default branch `main`.
+`PLAN.md` §5 Phases 1-4 are in place: the data and model pipeline, the app shell, the
+five panel components, and the Pages deployment. The remote is
+<https://github.com/dkirkby/data-model-loss>, default branch `main`, and the site is
+<https://dkirkby.github.io/data-model-loss/>.
 
 Two things in the UI are deliberately unbuilt: the per-sample inspector named in
 `PLAN.md` §4C (Panel C says so in its own text), and point-level hit testing in the
@@ -73,10 +72,18 @@ npm run build           # tsc && vite build -> frontend/dist
 `npm run build` typechecks `src` **and** `tests` before bundling, so a broken test file
 fails the build rather than slipping through.
 
-Deployment is GitHub Actions → GitHub Pages on push to `main` (`PLAN.md` §5 Phase 4).
-In the siblings, **CI never runs Python**: the site serves the committed JSON snapshot,
-so refreshed numbers reach the site only by regenerating locally and committing the
-artifact.
+`.github/workflows/deploy.yml` publishes to Pages on every push to `main`:
+`npm ci && npm run test && npm run build`, then `upload-pages-artifact` over
+`frontend/dist`. **CI never runs Python** — the site serves the committed JSON snapshot,
+so refreshed numbers reach it only by running `uv run python/generate_data.py` locally
+and committing the result. The tests run before the build on purpose:
+`tests/artifact.test.ts` is what certifies the snapshot, and one the app disagrees with
+should fail the job rather than ship.
+
+Pages is configured with `build_type: workflow` (the "GitHub Actions" source). There is
+no `configure-pages` step, because `vite.config.ts` pins `base` to `/data-model-loss/`
+— if the repo is renamed or moves to a custom domain, that constant is the one thing
+that has to change with it.
 
 ## Architecture
 
