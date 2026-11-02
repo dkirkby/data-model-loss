@@ -25,12 +25,13 @@
  * interaction stays declarative.
  */
 
-import { bin, interpolateViridis, quantile, scaleLinear, type ScaleLinear } from "d3";
+import { bin, scaleLinear, type ScaleLinear } from "d3";
 
 import type { Session } from "../model/session.ts";
 import type { HighlightTarget } from "../model/highlight.ts";
 import type { Range } from "../model/types.ts";
 import { DATASET_COLOR, MODEL_COLOR } from "./colors.ts";
+import { lossRamp } from "./lossramp.ts";
 import {
   axisDomains,
   cellsFor,
@@ -62,6 +63,49 @@ export interface CornerPlot {
 
 export function createCornerPlot(host: HTMLElement): CornerPlot {
   host.replaceChildren();
+
+  const shell = document.createElement("div");
+  shell.className = "corner-host";
+
+  // PLAN.md 4A: the loss-coloring toggle lives with the plot it controls.
+  const controls = document.createElement("div");
+  controls.className = "controls corner-controls";
+
+  /** A checkbox with an optional color swatch naming what it governs. */
+  function checkbox(text: string, swatch?: string): [HTMLLabelElement, HTMLInputElement] {
+    const label = document.createElement("label");
+    label.className = "control";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    label.append(input);
+    if (swatch) {
+      const chip = document.createElement("span");
+      chip.className = `swatch swatch-${swatch}`;
+      label.append(chip);
+    }
+    const span = document.createElement("span");
+    span.textContent = text;
+    label.append(span);
+    return [label, input];
+  }
+
+  const [dataLabel, dataToggle] = checkbox("Show data", "dataset");
+  const [predictionLabel, predictionToggle] = checkbox("Show predictions", "model");
+  const [toggleLabel, toggle] = checkbox("Points colored by loss value");
+
+  // A gradient strip with the end values, so the colors can be read as numbers.
+  const legend = document.createElement("div");
+  legend.className = "loss-legend";
+  const legendLow = document.createElement("span");
+  legendLow.className = "loss-legend-end";
+  const legendBar = document.createElement("span");
+  legendBar.className = "loss-legend-bar";
+  const legendHigh = document.createElement("span");
+  legendHigh.className = "loss-legend-end";
+  legend.append(legendLow, legendBar, legendHigh);
+
+  controls.append(dataLabel, predictionLabel, toggleLabel, legend);
+  shell.append(controls);
 
   const frame = document.createElement("div");
   frame.className = "corner";
@@ -97,9 +141,26 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
   labels.className = "corner-labels";
   frame.append(labels);
 
-  host.append(frame);
+  shell.append(frame);
+  host.append(shell);
 
   let current: Session | null = null;
+
+  /** Loss spans decades, so plain toFixed would print the low end as 0.000. */
+  function format(value: number): string {
+    if (value === 0) return "0";
+    if (value < 0.001 || value >= 1000) return value.toExponential(1);
+    return value.toPrecision(3);
+  }
+
+  /** Show the ramp only while coloring by loss; hide it otherwise. */
+  function renderLegend(domain: [number, number] | null): void {
+    legend.classList.toggle("is-visible", domain !== null);
+    if (!domain) return;
+    const [low, high] = domain;
+    legendLow.textContent = `L = ${format(low)}`;
+    legendHigh.textContent = `\u2265 ${format(high)} (log)`;
+  }
 
   function layout(): { cell: number; plot: number; originX: number; originY: number } | null {
     const width = frame.clientWidth - PAD.left - PAD.right;
@@ -183,19 +244,10 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
     const source = { x: data.x, y: data.y, outputs: weights.outputs };
     const column = (i: number, upper: boolean): number[] => columnValues(source, i, upper);
 
-    // The loss ramp is cut at the 99th percentile: a handful of badly fit
-    // samples would otherwise flatten the whole scale.
     const losses = weights.sample_losses;
-    const lossHigh = quantile(losses, 0.99) ?? 1;
-    const lossLow = Math.min(...losses);
-    const lossColor = scaleLinear<number>()
-      .domain([lossLow, lossHigh > lossLow ? lossHigh : lossLow + 1])
-      .range([0, 1])
-      .clamp(true);
-
-    const pointColors = session.colorByLoss
-      ? losses.map((value) => interpolateViridis(lossColor(value)))
-      : null;
+    const ramp = lossRamp(losses);
+    const pointColors = session.colorByLoss ? losses.map((value) => ramp.color(value)) : null;
+    renderLegend(session.colorByLoss ? ramp.domain : null);
 
     for (let row = 0; row < SIZE; row += 1) {
       for (let col = 0; col < SIZE; col += 1) {
@@ -214,11 +266,19 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
             size: box.cell,
             index: row,
             domain: domains[row] ?? [0, 1],
-            dataValues: column(row, false),
-            outputValues: row >= FEATURES ? column(row, true) : null,
+            dataValues: session.showData ? column(row, false) : null,
+            outputValues:
+              row >= FEATURES && session.showPredictions ? column(row, true) : null,
           });
         } else {
           const upper = isUpper(row, col);
+          // A hidden series leaves its subplots empty rather than redrawing
+          // them in the other series' color.
+          const showsOutput = involvesOutput(row, col);
+          if (showsOutput ? !session.showPredictions : !session.showData) {
+            ctx.restore();
+            continue;
+          }
           const xs = column(col, upper);
           const ys = column(row, upper);
           drawScatter(ctx, {
@@ -229,7 +289,7 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
             ys,
             xDomain: domains[col] ?? [0, 1],
             yDomain: domains[row] ?? [0, 1],
-            baseColor: involvesOutput(row, col) ? MODEL_COLOR : DATASET_MARK,
+            baseColor: showsOutput ? MODEL_COLOR : DATASET_MARK,
             pointColors,
           });
         }
@@ -296,7 +356,7 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
       size: number;
       index: number;
       domain: Range;
-      dataValues: number[];
+      dataValues: number[] | null;
       outputValues: number[] | null;
     },
   ): void {
@@ -304,21 +364,30 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
     const thresholds = x.ticks(HIST_BINS);
     const binner = bin<number, number>().domain(spec.domain).thresholds(thresholds);
 
-    const dataBins = binner(spec.dataValues.filter(Number.isFinite));
-    const outputBins = spec.outputValues
-      ? binner(spec.outputValues.filter(Number.isFinite))
-      : null;
+    // Values outside the quantile domain are folded into the end bins rather
+    // than discarded, so a histogram accounts for every sample.
+    const fold = (values: number[]): number[] =>
+      values
+        .filter(Number.isFinite)
+        .map((value) => Math.min(Math.max(value, spec.domain[0]), spec.domain[1]));
 
+    const dataBins = spec.dataValues ? binner(fold(spec.dataValues)) : null;
+    const outputBins = spec.outputValues ? binner(fold(spec.outputValues)) : null;
+    if (!dataBins && !outputBins) return;
+
+    // Only the visible series set the vertical scale, so hiding one lets the
+    // other use the full height of the cell.
     const peak = Math.max(
       1,
-      ...dataBins.map((b) => b.length),
+      ...(dataBins ? dataBins.map((b) => b.length) : []),
       ...(outputBins ? outputBins.map((b) => b.length) : []),
     );
+    // Headroom: the tallest bar stops short of the cell edge so it reads as a
+    // peak rather than as a bar running off the top of the subplot.
+    const base = spec.top + spec.size - 2;
     const height = scaleLinear()
       .domain([0, peak])
-      .range([0, spec.size - 6]);
-
-    const base = spec.top + spec.size - 2;
+      .range([0, (spec.size - 4) * 0.86]);
 
     // Predictions first, as a solid fill; the targets are then stroked over
     // them so the comparison stays readable where they overlap.
@@ -329,6 +398,7 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
       ctx.globalAlpha = 1;
     }
 
+    if (!dataBins) return;
     if (spec.index < FEATURES) {
       ctx.fillStyle = DATASET_COLOR;
       ctx.globalAlpha = 0.55;
@@ -372,9 +442,22 @@ export function createCornerPlot(host: HTMLElement): CornerPlot {
   });
   observer.observe(frame);
 
+  let wired = false;
+
   return {
     update(session: Session): void {
       current = session;
+      if (!wired) {
+        toggle.addEventListener("change", () => session.setColorByLoss(toggle.checked));
+        dataToggle.addEventListener("change", () => session.setShowData(dataToggle.checked));
+        predictionToggle.addEventListener("change", () =>
+          session.setShowPredictions(predictionToggle.checked),
+        );
+        wired = true;
+      }
+      toggle.checked = session.colorByLoss;
+      dataToggle.checked = session.showData;
+      predictionToggle.checked = session.showPredictions;
       draw(session);
     },
     flash(target: HighlightTarget): void {

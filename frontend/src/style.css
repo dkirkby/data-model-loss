@@ -289,11 +289,59 @@ body {
 
 /* -- corner plot -------------------------------------------------------- */
 
+.corner-host {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+}
+
+.corner-controls {
+  flex: 0 0 auto;
+  align-items: center;
+  margin: 0;
+  row-gap: 4px;
+}
+
 .corner {
   position: relative;
+  flex: 1 1 auto;
   width: 100%;
-  height: 100%;
-  min-height: 240px;
+  min-height: 200px;
+}
+
+/* The loss ramp, shown only while the points are colored by loss. */
+.loss-legend {
+  display: none;
+  align-items: center;
+  gap: 5px;
+}
+
+.loss-legend.is-visible {
+  display: flex;
+}
+
+.loss-legend-bar {
+  width: 92px;
+  height: 9px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  /* Viridis, sampled; matches lossramp.ts for the eye, not to the byte. */
+  background: linear-gradient(
+    to right,
+    #440154,
+    #414487,
+    #2a788e,
+    #22a884,
+    #7ad151,
+    #fde725
+  );
+}
+
+.loss-legend-end {
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .corner-canvas {
@@ -310,10 +358,6 @@ body {
 .corner-cell {
   border: 1px solid #e9eaec;
   border-radius: 2px;
-}
-
-.corner-cell.is-diagonal {
-  background: #fcfcfd;
 }
 
 /* The feature block, outlined in the dataset color (PLAN.md 4A). */
@@ -336,6 +380,8 @@ body {
     border-color: #e9eaec;
     background: transparent;
   }
+  /* Nothing here may set an opaque background: the overlay sits above the
+     canvas, and anything solid hides the marks it is meant to highlight. */
   15%,
   55% {
     border-color: var(--model);
@@ -406,8 +452,16 @@ body {
   vertical-align: -1px;
 }
 
-.swatch-positive {
+.swatch-positive,
+.swatch-model {
   background: var(--model);
+}
+
+/* The data swatch uses the exact spec color: as a filled chip, unlike a 1px
+   scatter mark, #fecc07 reads fine. */
+.swatch-dataset {
+  background: var(--dataset);
+  border: 1px solid #c9a206;
 }
 
 .swatch-negative {
@@ -424,6 +478,17 @@ body {
 
 .loss-formula .katex-display {
   margin: 0;
+}
+
+.loss-hist-host {
+  margin: 0 0 8px;
+}
+
+.loss-hist {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 128px;
 }
 
 .loss-explain,

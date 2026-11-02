@@ -17,18 +17,23 @@ import type { HighlightBus, HighlightTarget } from "../model/highlight.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-// Internal coordinate system; the SVG scales to its container.
-const VIEW = { width: 960, height: 190 };
-const BLOCK = { top: 46, height: 116, narrow: 76, modelWidth: 150 };
+// Internal coordinate system; the SVG scales to its container. The aspect ratio
+// is what decides how much of a taller panel the figure actually uses: with the
+// old 960x190 the extra height just became whitespace on either side of a
+// letterboxed drawing.
+const VIEW = { width: 960, height: 560 };
+// FEATURES is wider than the other two data blocks; OUTPUT and TARGET share one
+// narrower width so the pair the loss compares reads as a matched pair.
+const BLOCK = { top: 68, height: 440, wide: 132, narrow: 80, modelWidth: 150 };
 
 /** One tick row per drawn sample. Representative, not one per real sample. */
-const SAMPLE_ROWS = 11;
+const SAMPLE_ROWS = 26;
 
 const COLUMNS = {
-  features: 70,
-  model: 330,
-  output: 606,
-  target: 812,
+  features: 58,
+  model: 322,
+  output: 600,
+  target: 800,
 } as const;
 
 function svg<K extends keyof SVGElementTagNameMap>(
@@ -47,12 +52,12 @@ function mathLabel(x: number, y: number, base: string, sub: string, fill: string
     y,
     fill,
     "text-anchor": "middle",
-    "font-size": 19,
+    "font-size": 24,
     "font-style": "italic",
     "font-family": "Georgia, 'Times New Roman', serif",
   });
   text.append(document.createTextNode(base));
-  const subscript = svg("tspan", { "baseline-shift": "sub", "font-size": 13, "font-style": "normal" });
+  const subscript = svg("tspan", { "baseline-shift": "sub", "font-size": 16, "font-style": "normal" });
   subscript.textContent = sub;
   text.append(subscript);
   return text;
@@ -61,9 +66,9 @@ function mathLabel(x: number, y: number, base: string, sub: string, fill: string
 function columnTitle(x: number, label: string): SVGTextElement {
   const text = svg("text", {
     x,
-    y: 26,
+    y: 40,
     "text-anchor": "middle",
-    "font-size": 13,
+    "font-size": 15,
     "font-weight": 600,
     "letter-spacing": 1.2,
     fill: "#44464a",
@@ -116,7 +121,15 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     target: HighlightTarget,
     x: number,
     width: number,
-    options: { filled: boolean; rounded?: boolean; title: string; base: string; sub: string },
+    options: {
+      filled: boolean;
+      /** Draw the dataset-color outline even on a filled block. */
+      outlined?: boolean;
+      rounded?: boolean;
+      title: string;
+      base: string;
+      sub: string;
+    },
   ): SVGGElement {
     const group = svg("g", {
       class: `fc-block fc-block-${target}`,
@@ -129,10 +142,11 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
       y: BLOCK.top,
       width,
       height: BLOCK.height,
-      rx: options.rounded ? 16 : 3,
+      // Sharp corners on the data blocks; only MODEL is rounded.
+      rx: options.rounded ? 16 : 0,
       fill: options.filled ? MODEL_COLOR : "#ffffff",
-      stroke: options.filled ? MODEL_COLOR : DATASET_COLOR,
-      "stroke-width": options.filled ? 1 : 2.5,
+      stroke: options.filled && !options.outlined ? MODEL_COLOR : DATASET_COLOR,
+      "stroke-width": options.filled && !options.outlined ? 1 : 2.5,
     });
     group.append(rect);
 
@@ -158,7 +172,7 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     group.append(
       mathLabel(
         x + width / 2,
-        BLOCK.top + BLOCK.height / 2 + 7,
+        BLOCK.top + BLOCK.height / 2 + 9,
         options.base,
         options.sub,
         options.filled ? "#ffffff" : "#1a1a1a",
@@ -166,7 +180,13 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     );
 
     const activate = () => bus.emit(target);
-    group.addEventListener("click", activate);
+    group.addEventListener("click", () => {
+      activate();
+      // Clicking should highlight and nothing else. Without this the block keeps
+      // focus and some browsers leave the focus ring drawn around it; keyboard
+      // activation goes through keydown below and keeps its ring.
+      group.blur();
+    });
     group.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -200,7 +220,7 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
   const outputX = COLUMNS.output;
   const targetX = COLUMNS.target;
 
-  root.append(connect(featuresX + BLOCK.narrow, modelX));
+  root.append(connect(featuresX + BLOCK.wide, modelX));
   root.append(connect(modelX + BLOCK.modelWidth, outputX));
 
   // The loss link: a dark green double-headed arrow per aligned sample pair,
@@ -253,11 +273,11 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     x: gapMid,
     y: BLOCK.top + BLOCK.height / 2,
     "text-anchor": "middle",
-    "font-size": 12,
+    "font-size": 15,
     "font-weight": 600,
-    "letter-spacing": 1,
+    "letter-spacing": 1.5,
     fill: LOSS_COLOR,
-    dy: -7,
+    dy: -9,
   });
   lossLabel.textContent = "LOSS FUNCTION";
   lossGroup.append(lossLabel);
@@ -266,17 +286,20 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     x: gapMid,
     y: BLOCK.top + BLOCK.height / 2,
     "text-anchor": "middle",
-    "font-size": 14,
+    "font-size": 17,
     "font-style": "italic",
     "font-family": "Georgia, 'Times New Roman', serif",
     fill: LOSS_COLOR,
-    dy: 11,
+    dy: 15,
   });
   lossMath.textContent = "L(ŷ, y; Θ)";
   lossGroup.append(lossMath);
 
   const activateLoss = () => bus.emit("loss");
-  lossGroup.addEventListener("click", activateLoss);
+  lossGroup.addEventListener("click", () => {
+    activateLoss();
+    lossGroup.blur();
+  });
   lossGroup.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -285,7 +308,7 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
   });
 
   root.append(
-    block("features", featuresX, BLOCK.narrow, {
+    block("features", featuresX, BLOCK.wide, {
       filled: false,
       title: "FEATURES",
       base: "x",
@@ -304,6 +327,10 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
   root.append(
     block("output", outputX, BLOCK.narrow, {
       filled: true,
+      // Model-blue fill for a parameter-dependent quantity, but outlined like
+      // the data blocks: it is the per-sample array the loss compares against
+      // TARGET, and the outline makes that pairing visible.
+      outlined: true,
       title: "OUTPUT",
       base: "ŷ",
       sub: "il",
@@ -324,13 +351,13 @@ export function createFlowchart(host: HTMLElement, bus: HighlightBus, sampleCoun
     x: featuresX - 8,
     y: BLOCK.top + BLOCK.height / 2,
     "text-anchor": "end",
-    "font-size": 11,
+    "font-size": 13,
     fill: "#6b6f76",
   });
   samples.textContent = `i = 1 … ${sampleCount}`;
   root.append(samples);
 
-  const hint = svg("text", { x: VIEW.width / 2, y: VIEW.height - 6, "text-anchor": "middle", "font-size": 11, fill: "#8a8f96" });
+  const hint = svg("text", { x: VIEW.width / 2, y: VIEW.height - 10, "text-anchor": "middle", "font-size": 13, fill: "#8a8f96" });
   hint.textContent = "click a block to highlight the subplots that show it";
   root.append(hint);
 

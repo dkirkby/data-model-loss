@@ -204,7 +204,10 @@ outputs are softmax probabilities, so no de-standardization applies.
 * `weights[].hyperparameters` — the seed for a random initialization; the seed,
   learning rate, batch size and epoch count for a trained one.
 * `weights[].sample_losses` — one $L(\hat{\mathbf{y}}_i, \mathbf{y}_i; \Theta)$ per
-  sample, in the same row order as `data.x`; `total_loss` is their mean.
+  sample, in the same row order as `data.x`. `total_loss` is their **mean**, not their
+  sum: $L(\Theta) = \frac{1}{N}\sum_i L(\hat{\mathbf{y}}_i, \mathbf{y}_i; \Theta)$.
+  That is the form Panel D renders, and it is what makes the two datasets comparable
+  with $N = 500$ against $N = 1500$.
 
 Serialized precision is 4 decimals for data and outputs, 6 for losses and parameters.
 The whole artifact is ~490 KB and regenerates byte-identically.

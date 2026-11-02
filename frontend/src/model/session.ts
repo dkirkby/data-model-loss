@@ -11,6 +11,10 @@ export interface SessionState {
   weightId: string;
   /** PLAN.md section 4A: "points colored by loss value". */
   colorByLoss: boolean;
+  /** Show the dataset-fixed marks: features, targets, their histograms. */
+  showData: boolean;
+  /** Show the parameter-dependent marks: model outputs and their histogram. */
+  showPredictions: boolean;
 }
 
 export type SessionListener = (session: Session) => void;
@@ -26,6 +30,8 @@ export class Session {
       datasetKey,
       weightId: artifact.datasets[datasetKey].metadata.default_weight_id,
       colorByLoss: false,
+      showData: true,
+      showPredictions: true,
     };
   }
 
@@ -43,6 +49,14 @@ export class Session {
 
   get colorByLoss(): boolean {
     return this.state.colorByLoss;
+  }
+
+  get showData(): boolean {
+    return this.state.showData;
+  }
+
+  get showPredictions(): boolean {
+    return this.state.showPredictions;
   }
 
   /** Switching dataset resets the weight selection to that dataset's default. */
@@ -66,6 +80,18 @@ export class Session {
   setColorByLoss(colorByLoss: boolean): void {
     if (colorByLoss === this.state.colorByLoss) return;
     this.state = { ...this.state, colorByLoss };
+    this.emit();
+  }
+
+  setShowData(showData: boolean): void {
+    if (showData === this.state.showData) return;
+    this.state = { ...this.state, showData };
+    this.emit();
+  }
+
+  setShowPredictions(showPredictions: boolean): void {
+    if (showPredictions === this.state.showPredictions) return;
+    this.state = { ...this.state, showPredictions };
     this.emit();
   }
 

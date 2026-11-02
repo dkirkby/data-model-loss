@@ -6,11 +6,9 @@
  * fill the sign of b, so switching weight sets is visible at a glance even
  * though 387 numbers are far too many to read.
  *
- * Numeric labels are a toggle, off by default. PLAN.md asks for edges labeled
- * with w and nodes with b, but the middle layer pair alone has 16x16 = 256
- * edges: printed all at once they are unreadable. Every value is always
- * available on hover through the SVG <title>, and the toggle turns the printed
- * labels on when a layer is being discussed.
+ * Weight and bias values are not printed on the diagram: the middle layer pair
+ * alone has 16x16 = 256 edges, and 387 numbers at once is unreadable. Each value
+ * is available on hover through the SVG <title>.
  */
 
 import { renderDenseNetworkSvg } from "nnet-svg";
@@ -39,26 +37,9 @@ function maxAbs(values: number[]): number {
 
 export function createModelPanel(host: HTMLElement): ModelPanel {
   host.replaceChildren();
-  let showLabels = false;
-  let current: Session | null = null;
 
   const badge = document.createElement("p");
   badge.className = "badge";
-
-  const controls = document.createElement("div");
-  controls.className = "controls";
-  const labelToggle = document.createElement("label");
-  labelToggle.className = "control";
-  const labelCheckbox = document.createElement("input");
-  labelCheckbox.type = "checkbox";
-  labelCheckbox.addEventListener("change", () => {
-    showLabels = labelCheckbox.checked;
-    if (current) render(current);
-  });
-  const labelText = document.createElement("span");
-  labelText.textContent = "Show w and b labels";
-  labelToggle.append(labelCheckbox, labelText);
-  controls.append(labelToggle);
 
   const legend = document.createElement("p");
   legend.className = "model-legend";
@@ -73,7 +54,9 @@ export function createModelPanel(host: HTMLElement): ModelPanel {
   const selector = document.createElement("fieldset");
   selector.className = "weight-selector";
 
-  host.append(badge, controls, legend, diagram, selector);
+  // The weight selector sits above the diagram: it is the control that changes
+  // what the diagram shows, so it reads first.
+  host.append(badge, selector, legend, diagram);
 
   function renderSelector(session: Session): void {
     selector.replaceChildren();
@@ -142,11 +125,6 @@ export function createModelPanel(host: HTMLElement): ModelPanel {
           stroke: b < 0 ? NEGATIVE : POSITIVE,
         };
       },
-      edgeLabel: (edge) =>
-        showLabels && edge.value !== undefined ? edge.value.toFixed(2) : null,
-      nodeLabel: (node) => (showLabels && node.value !== undefined ? node.value.toFixed(2) : null),
-      edgeLabelAttrs: () => ({ "font-size": 4, fill: "#44464a" }),
-      nodeLabelAttrs: () => ({ "font-size": 5, fill: "#1a1a1a" }),
       edgeTitle: (edge) =>
         edge.value === undefined
           ? null
@@ -162,8 +140,6 @@ export function createModelPanel(host: HTMLElement): ModelPanel {
 
   return {
     update(session: Session): void {
-      current = session;
-      labelCheckbox.checked = showLabels;
       render(session);
     },
     destroy(): void {

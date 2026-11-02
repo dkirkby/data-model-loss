@@ -81,11 +81,16 @@ The workspace is organized into resizable, draggable, and collapsible grid panel
 ### Detailed Component Specifications
 
 #### Top Container. Central Data Flow Chart (SVG Panel)
-Displays the structural pipeline from left to right:
+Displays the structural pipeline from left to right. The panel opens tall (12 grid rows)
+so the figure is the first thing read, and the SVG's aspect ratio matches, otherwise the
+extra height becomes whitespace around a letterboxed drawing rather than a bigger one:
 - **Blocks**:
   1. `FEATURES` ($x_{ij}$): Tall rectangle with outline `#fecc07` (Dataset component). Height represents samples $i=1\dots N$.
   2. `MODEL` ($f_l(\mathbf{x}_i;\Theta)$): Rounded rectangle with background `#255799` and white text.
-  3. `OUTPUT` ($\hat{y}_{il}$): Tall rectangle with background `#255799` and white text.
+  3. `OUTPUT` ($\hat{y}_{il}$): Tall rectangle with background `#255799` and white text,
+     **plus a `#fecc07` outline**. The fill says parameter-dependent; the outline says
+     this is the per-sample array the loss compares against `TARGET`, and pairs the two
+     blocks visually.
   4. `TARGET`: ($y_{il}$): Tall rectangle with outline `#fecc07` (Dataset component).
 - **Labels**:
   - Top labels: `FEATURES`, `MODEL`, `OUTPUT`, `TARGET`.
@@ -119,19 +124,23 @@ Arranged as a $6 \times 6$ matrix of subplots with axes omitted and data scaled 
 - **Top-Right $3 \times 3$ Block (Feature vs Output Space)**:
   - 2D scatter plots of features $x_i$ vs model output values $\hat{y}_j$.
 - **Controls & Interactions**:
-  - Toggle Checkbox: *"Points colored by loss value"*. When checked, point colors transition along a color ramp according to per-sample loss $L_i$ for the selected weight set $\Theta$.
+  - Toggle Checkboxes: *"Show data"* (`#fecc07`) and *"Show predictions"* (`#255799`),
+    both on by default. Hiding a series empties the subplots that show it and leaves the
+    other series to use the full height of the diagonal histograms, which is how you
+    compare $y$ and $\hat{y}$ one at a time.
+  - Toggle Checkbox: *"Points colored by loss value"*. When checked, point colors transition along a color ramp according to per-sample loss $L_i$ for the selected weight set $\Theta$. The ramp is **logarithmic in $L$**, spanning the smallest positive loss present (bounded to four decades) up to the 99th percentile, with a legend showing both ends. Loss distributions are heavily right-skewed, so a linear ramp puts almost every sample of a trained model into one dark band and tells you nothing.
   - Visual Highlighting: Clicking `FEATURES` or `TARGET` or `OUTPUT` in the flow chart temporarily flashes/highlights the corresponding subplots. Clicking the loss function area temporarily flashes/highlights the histograms along the bottom-right 3x3 diagonal. Clicking `MODEL` in the flowchart temporarily flashes/highlights subplots involving yhat.
 
 #### B. Model Architecture Panel (`nnet-svg`)
 - Renders the neural network layers visually using `nnet-svg` (`v0.1.1`).
-- Edges labeled with weights $w_{ijk}$ and nodes labeled with biases $b_{jk}$, **behind a
-  toggle that is off by default**: the middle layer pair alone has $16 \times 16 = 256$
-  edges, and printing all 387 numbers at once is unreadable. Instead, edge color carries
-  the sign of $w$ and edge width its magnitude, node fill the sign of $b$, and every
-  value is available on hover through the SVG `<title>`. The toggle prints the labels
-  when a particular layer is under discussion.
+- Weights $w_{ijk}$ and biases $b_{jk}$ are **encoded, not printed**: the middle layer
+  pair alone has $16 \times 16 = 256$ edges, and 387 numbers on one diagram is
+  unreadable. Edge color carries the sign of $w$ and edge width its magnitude, node fill
+  the sign of $b$; each exact value is available on hover through the SVG `<title>`.
 - `maxDisplayedNodes` is set to 16 so the hidden layers are shown in full; the library
   default of 12 would truncate them around an ellipsis and hide parameters.
+- The **weight selector sits above the diagram**: it is the control that decides what the
+  diagram shows, so it reads first.
 - Badge displaying **Total Parameter Count**: $|\Theta|$.
 - Weight Selection Controls: Radio buttons or dropdown to choose between 3 Random Initializations and 3 Pretrained Weight sets (Default: 1st Pretrained Set).
 
