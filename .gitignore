@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Real catalog downloads (ERA5, SDSS/Gaia). The pipeline falls back to its
+# synthetic generators when these are absent, so the build never needs them
+# and they stay out of the repo. frontend/public/data is NOT ignored: that
+# snapshot is what the site is built from.
+python/raw_data/
+
+.DS_Store
